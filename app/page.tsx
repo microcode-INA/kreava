@@ -11,14 +11,20 @@ import { adTemplates, type AdTemplate } from "./template-data";
 import { buildSalesPageHtml } from "./sales-page-template";
 
 type View = "studio" | "templates" | "salespage" | "library" | "brand";
-type Format = "square" | "portrait" | "story" | "landscape";
+type Format = "square" | "portrait" | "story" | "landscape" | "mini";
 
 const formats: { id: Format; label: string; ratio: string; className: string }[] = [
   { id: "square", label: "Persegi", ratio: "1:1", className: "square" },
   { id: "portrait", label: "Potret", ratio: "4:5", className: "portrait" },
   { id: "story", label: "Story", ratio: "9:16", className: "story" },
   { id: "landscape", label: "Lanskap", ratio: "16:9", className: "landscape" },
+  { id: "mini", label: "Mini banner", ratio: "16:5", className: "mini" },
 ];
+
+const formatSizes: Record<Format, string> = {
+  square: "1080 × 1080 px", portrait: "1080 × 1350 px", story: "1080 × 1920 px",
+  landscape: "1920 × 1080 px", mini: "320 × 100 px",
+};
 
 const projects = [
   { title: "Flash Sale Skincare", type: "Gambar iklan", date: "Hari ini", tone: "coral" },
@@ -77,6 +83,9 @@ function Studio({ template }: { template?: AdTemplate | null }) {
   const [concept, setConcept] = useState(1);
   const [generating, setGenerating] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [editMode, setEditMode] = useState<"ai" | "manual">("ai");
+  const [zoom, setZoom] = useState(100);
+  const [position, setPosition] = useState(50);
   const generate = () => { setGenerating(true); setSaved(false); window.setTimeout(() => { setConcept((v) => v % 4 + 1); setGenerating(false); }, 900); };
   return <main className="studio-page">
     <section className="page-heading"><div><p className="eyebrow"><Sparkles size={14} /> Studio AI</p><h1>Buat iklan yang <em>siap menjual.</em></h1><p>Isi brief singkat, lalu dapatkan materi iklan yang konsisten dengan brand-mu.</p></div><button className="history-button"><RefreshCw size={15} /> Riwayat generasi</button></section>
@@ -95,7 +104,8 @@ function Studio({ template }: { template?: AdTemplate | null }) {
       <section className="result-card">
         <div className="result-head"><div><p className="status"><i /> {mode === "Template" && template ? `${template.id} dipilih` : `Konsep #${concept} siap`}</p><h2>{mode === "Template" && template ? template.title : product || "Materi iklan baru"}</h2></div><button className="icon-button" aria-label="Menu hasil"><MoreHorizontal size={19} /></button></div>
         <div className="format-tabs">{formats.map((f) => <button key={f.id} onClick={() => setFormat(f.id)} className={format === f.id ? "active" : ""}><span>{f.label}</span><small>{f.ratio}</small></button>)}</div>
-        <div className={`preview-stage ${generating ? "is-generating" : ""}`}>{generating && <div className="generating-overlay"><Sparkles size={26} /><strong>Menyusun visual terbaik...</strong></div>}{mode === "Template" && template ? <img className={`template-result ${format}`} src={template.image} alt={template.title} /> : <AdPreview format={format} concept={concept} />}<span className="preview-size">{format === "square" ? "1080 × 1080 px" : format === "portrait" ? "1080 × 1350 px" : format === "story" ? "1080 × 1920 px" : "1920 × 1080 px"}</span></div>
+        {mode === "Template" && template && <div className="adapt-toolbar"><div className="adapt-modes"><button className={editMode === "ai" ? "active" : ""} onClick={() => setEditMode("ai")}><WandSparkles size={14} /> AI Adaptasi</button><button className={editMode === "manual" ? "active" : ""} onClick={() => setEditMode("manual")}><SlidersHorizontal size={14} /> Edit Manual</button></div>{editMode === "manual" && <div className="manual-controls"><label>Zoom <input type="range" min="100" max="180" value={zoom} onChange={(event) => setZoom(Number(event.target.value))} /><span>{zoom}%</span></label><label>Posisi <input type="range" min="0" max="100" value={position} onChange={(event) => setPosition(Number(event.target.value))} /></label></div>}</div>}
+        <div className={`preview-stage ${generating ? "is-generating" : ""}`}>{generating && <div className="generating-overlay"><Sparkles size={26} /><strong>Menyusun visual terbaik...</strong></div>}{mode === "Template" && template ? <div className={`template-result-frame ${format} ${editMode}`}><img className="template-backdrop" src={template.image} alt="" /><img className="template-main" src={template.image} alt={template.title} style={editMode === "manual" ? { transform: `scale(${zoom / 100})`, objectPosition: `${position}% 50%` } : undefined} />{format === "mini" && editMode === "ai" && <div className="mini-ai-copy"><span>PROMO SPESIAL</span><strong>Penawaran terbaik<br />untukmu hari ini.</strong><b>Lihat sekarang →</b></div>}</div> : <AdPreview format={format} concept={concept} />}<span className="preview-size">{formatSizes[format]} • {editMode === "ai" ? "Komposisi otomatis" : "Penyesuaian manual"}</span></div>
         <div className="concept-row"><span>Variasi konsep</span><div>{[1,2,3,4].map((n) => <button key={n} onClick={() => setConcept(n)} className={concept === n ? "active" : ""}>{n}</button>)}</div></div>
         <div className="result-actions"><button className="secondary-action" onClick={() => setSaved(!saved)}>{saved ? <Check size={17} /> : <BookOpen size={17} />}{saved ? "Tersimpan" : "Simpan"}</button><button className="download-button"><ArrowDownToLine size={17} /> Unduh PNG <ChevronDown size={15} /></button></div>
       </section>
