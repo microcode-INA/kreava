@@ -1,14 +1,16 @@
 "use client";
 
 import {
-  ArrowDownToLine, Bell, BookOpen, Check, ChevronDown, Image as ImageIcon,
-  Eye, Grid3X3, LayoutTemplate, Menu, MoreHorizontal, Palette, Plus, RefreshCw,
-  Search, SlidersHorizontal, Sparkles, Type, WandSparkles, X, Zap,
+  ArrowDownToLine, Bell, BookOpen, Check, CheckCircle2, ChevronDown, Code2,
+  Copy, Eye, Grid3X3, Image as ImageIcon, LayoutTemplate, Menu, Monitor,
+  MoreHorizontal, Palette, Plus, RefreshCw, Search, ShieldCheck,
+  SlidersHorizontal, Smartphone, Sparkles, Type, WandSparkles, X, Zap,
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { adTemplates, type AdTemplate } from "./template-data";
+import { buildSalesPageHtml } from "./sales-page-template";
 
-type View = "studio" | "templates" | "library" | "brand";
+type View = "studio" | "templates" | "salespage" | "library" | "brand";
 type Format = "square" | "portrait" | "story" | "landscape";
 
 const formats: { id: Format; label: string; ratio: string; className: string }[] = [
@@ -44,7 +46,7 @@ function Sidebar({ view, setView, open, close }: { view: View; setView: (v: View
         <p className="nav-label nav-section">Generator</p>
         <button onClick={() => select("studio")}><ImageIcon size={18} /> Gambar iklan</button>
         <button className={view === "templates" ? "active" : ""} onClick={() => select("templates")}><Grid3X3 size={18} /> Template iklan <span className="count">797</span></button>
-        <button onClick={() => select("studio")}><LayoutTemplate size={18} /> Sales page</button>
+        <button className={view === "salespage" ? "active" : ""} onClick={() => select("salespage")}><LayoutTemplate size={18} /> Sales page</button>
         <button onClick={() => select("studio")}><Type size={18} /> Teks iklan</button>
       </nav>
       <div className="plan-card"><div><span className="plan-icon"><Zap size={15} /></span><div><strong>Paket Starter</strong><small>18 dari 30 kredit</small></div></div><div className="meter"><span /></div><button>Upgrade paket</button></div>
@@ -129,6 +131,49 @@ function TemplateCatalog({ onUse }: { onUse: (template: AdTemplate) => void }) {
   </main>;
 }
 
+function SalesPageBuilder() {
+  const defaults = {
+    product: "797 Template Iklan High-Conversion",
+    audience: "Pemilik bisnis, seller online, dan marketer Indonesia",
+    price: "Rp149.000",
+    originalPrice: "Rp1.497.000",
+    cta: "AMBIL SEMUA TEMPLATE SEKARANG",
+  };
+  const [form, setForm] = useState(defaults);
+  const [html, setHtml] = useState(() => buildSalesPageHtml(defaults));
+  const [device, setDevice] = useState<"desktop" | "mobile">("desktop");
+  const [resultMode, setResultMode] = useState<"preview" | "html">("preview");
+  const [copied, setCopied] = useState(false);
+  const update = (key: keyof typeof defaults, value: string) => setForm((current) => ({ ...current, [key]: value }));
+  const generate = () => { setHtml(buildSalesPageHtml(form)); setResultMode("preview"); setCopied(false); };
+  const copyHtml = async () => { await navigator.clipboard.writeText(html); setCopied(true); window.setTimeout(() => setCopied(false), 1800); };
+
+  return <main className="content-page sales-builder-page">
+    <section className="page-heading"><div><p className="eyebrow"><LayoutTemplate size={14} /> Sales Page Generator</p><h1>Susun halaman yang <em>menggerakkan emosi.</em></h1><p>Struktur konversi tinggi, responsif, dan siap disalin sebagai satu file HTML.</p></div><span className="asset-badge"><Code2 size={14} /> Output HTML siap pakai</span></section>
+    <div className="sales-builder-layout">
+      <section className="sales-controls">
+        <div className="card-title"><span>01</span><div><h2>Penawaran utama</h2><p>Informasi ini langsung diterapkan ke halaman.</p></div></div>
+        <label>Nama produk<input value={form.product} onChange={(event) => update("product", event.target.value)} /></label>
+        <label>Target pembeli<textarea rows={3} value={form.audience} onChange={(event) => update("audience", event.target.value)} /></label>
+        <div className="sales-price-grid"><label>Harga coret<input value={form.originalPrice} onChange={(event) => update("originalPrice", event.target.value)} /></label><label>Harga promo<input value={form.price} onChange={(event) => update("price", event.target.value)} /></label></div>
+        <label>Teks tombol beli<input value={form.cta} onChange={(event) => update("cta", event.target.value)} /></label>
+        <div className="conversion-rules"><p>Formula konversi aktif</p>{[
+          "Pain → agitasi → solusi", "Scarcity dan penawaran terbatas", "Sticky tombol beli", "Tipografi besar dan jelas", "Responsif desktop dan mobile", "Visual dari aset template"
+        ].map((rule) => <span key={rule}><CheckCircle2 size={14} /> {rule}</span>)}</div>
+        <button className="generate-button" onClick={generate}><Sparkles size={18} /> Buat ulang sales page <span>8 kredit</span></button>
+        <p className="brand-note"><ShieldCheck size={14} /> Semua tombol transaksi masih mengarah ke <strong>#</strong></p>
+      </section>
+      <section className="sales-result">
+        <div className="sales-result-bar"><div className="result-tabs"><button className={resultMode === "preview" ? "active" : ""} onClick={() => setResultMode("preview")}><Eye size={15} /> Preview</button><button className={resultMode === "html" ? "active" : ""} onClick={() => setResultMode("html")}><Code2 size={15} /> HTML</button></div><div className="result-tools"><div className="device-toggle"><button className={device === "desktop" ? "active" : ""} onClick={() => setDevice("desktop")} aria-label="Preview desktop"><Monitor size={16} /></button><button className={device === "mobile" ? "active" : ""} onClick={() => setDevice("mobile")} aria-label="Preview mobile"><Smartphone size={16} /></button></div><button className={`copy-html ${copied ? "copied" : ""}`} onClick={copyHtml}>{copied ? <Check size={15} /> : <Copy size={15} />}{copied ? "Tersalin" : "Salin HTML"}</button></div></div>
+        <div className={`sales-preview-shell ${device}`}>
+          {resultMode === "preview" ? <iframe title="Preview sales page" srcDoc={html} sandbox="allow-scripts" /> : <pre className="html-output"><code>{html}</code></pre>}
+        </div>
+        <div className="sales-result-foot"><span><CheckCircle2 size={13} /> HTML + CSS dalam satu file</span><span>Responsif • Tidak perlu library</span></div>
+      </section>
+    </div>
+  </main>;
+}
+
 function LibraryView() {
   const [query, setQuery] = useState("");
   const visible = useMemo(() => projects.filter((p) => p.title.toLowerCase().includes(query.toLowerCase())), [query]);
@@ -142,7 +187,7 @@ function BrandView() {
 
 export default function Home() {
   const [view, setView] = useState<View>("studio"); const [menuOpen, setMenuOpen] = useState(false); const [selectedTemplate, setSelectedTemplate] = useState<AdTemplate | null>(null);
-  const title = view === "studio" ? "Studio AI" : view === "templates" ? "Template Iklan" : view === "library" ? "Perpustakaan" : "Brand Kit";
+  const title = view === "studio" ? "Studio AI" : view === "templates" ? "Template Iklan" : view === "salespage" ? "Sales Page" : view === "library" ? "Perpustakaan" : "Brand Kit";
   const useTemplate = (template: AdTemplate) => { setSelectedTemplate(template); setView("studio"); window.scrollTo({ top: 0, behavior: "smooth" }); };
-  return <div className="app-shell"><Sidebar view={view} setView={setView} open={menuOpen} close={() => setMenuOpen(false)} /><div className="main-shell"><Header title={title} onMenu={() => setMenuOpen(true)} />{view === "studio" ? <Studio key={selectedTemplate?.id ?? "ai"} template={selectedTemplate} /> : view === "templates" ? <TemplateCatalog onUse={useTemplate} /> : view === "library" ? <LibraryView /> : <BrandView />}</div></div>;
+  return <div className="app-shell"><Sidebar view={view} setView={setView} open={menuOpen} close={() => setMenuOpen(false)} /><div className="main-shell"><Header title={title} onMenu={() => setMenuOpen(true)} />{view === "studio" ? <Studio key={selectedTemplate?.id ?? "ai"} template={selectedTemplate} /> : view === "templates" ? <TemplateCatalog onUse={useTemplate} /> : view === "salespage" ? <SalesPageBuilder /> : view === "library" ? <LibraryView /> : <BrandView />}</div></div>;
 }
