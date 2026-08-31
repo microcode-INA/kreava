@@ -2,12 +2,13 @@
 
 import {
   ArrowDownToLine, Bell, BookOpen, Check, ChevronDown, Image as ImageIcon,
-  LayoutTemplate, Menu, MoreHorizontal, Palette, Plus, RefreshCw, Search,
-  Sparkles, Type, WandSparkles, X, Zap,
+  Eye, Grid3X3, LayoutTemplate, Menu, MoreHorizontal, Palette, Plus, RefreshCw,
+  Search, SlidersHorizontal, Sparkles, Type, WandSparkles, X, Zap,
 } from "lucide-react";
 import { useMemo, useState } from "react";
+import { adTemplates, type AdTemplate } from "./template-data";
 
-type View = "studio" | "library" | "brand";
+type View = "studio" | "templates" | "library" | "brand";
 type Format = "square" | "portrait" | "story" | "landscape";
 
 const formats: { id: Format; label: string; ratio: string; className: string }[] = [
@@ -42,6 +43,7 @@ function Sidebar({ view, setView, open, close }: { view: View; setView: (v: View
         <button className={view === "brand" ? "active" : ""} onClick={() => select("brand")}><Palette size={18} /> Brand Kit</button>
         <p className="nav-label nav-section">Generator</p>
         <button onClick={() => select("studio")}><ImageIcon size={18} /> Gambar iklan</button>
+        <button className={view === "templates" ? "active" : ""} onClick={() => select("templates")}><Grid3X3 size={18} /> Template iklan <span className="count">797</span></button>
         <button onClick={() => select("studio")}><LayoutTemplate size={18} /> Sales page</button>
         <button onClick={() => select("studio")}><Type size={18} /> Teks iklan</button>
       </nav>
@@ -65,9 +67,9 @@ function AdPreview({ format, concept }: { format: Format; concept: number }) {
   </div>;
 }
 
-function Studio() {
+function Studio({ template }: { template?: AdTemplate | null }) {
   const [format, setFormat] = useState<Format>("square");
-  const [mode, setMode] = useState("AI Kreatif");
+  const [mode, setMode] = useState(template ? "Template" : "AI Kreatif");
   const [product, setProduct] = useState("Kala Glow Serum");
   const [audience, setAudience] = useState("Perempuan 20–35 tahun yang ingin kulit cerah dan sehat");
   const [concept, setConcept] = useState(1);
@@ -85,16 +87,45 @@ function Studio() {
         <div className="field"><span className="field-label">Gaya komunikasi</span><div className="chips">{["Persuasif", "Hangat", "Berani", "Elegan"].map((x, i) => <button key={x} className={i === 0 ? "selected" : ""}>{x}</button>)}</div></div>
         <div className="divider" /><div className="card-title compact"><span>02</span><div><h2>Mode kreatif</h2></div></div>
         <div className="mode-grid">{[{name:"AI Kreatif", desc:"Konsep unik dari nol", icon:WandSparkles},{name:"Template",desc:"Pilih layout terbukti",icon:LayoutTemplate}].map((item) => <button key={item.name} onClick={() => setMode(item.name)} className={mode === item.name ? "mode active" : "mode"}><item.icon size={19} /><span><strong>{item.name}</strong><small>{item.desc}</small></span>{mode === item.name && <i><Check size={11} /></i>}</button>)}</div>
-        <button className="generate-button" onClick={generate} disabled={generating}><Sparkles size={18} />{generating ? "Meracik konsep..." : "Buat 4 konsep iklan"}<span>12 kredit</span></button><p className="brand-note"><Palette size={14} /> Otomatis menggunakan Brand Kit <strong>Kala Skin</strong></p>
+        {mode === "Template" && template && <div className="chosen-template"><img src={template.image} alt="" /><div><span>Template dipilih</span><strong>{template.title}</strong><small>{template.category} • {template.id}</small></div></div>}
+        <button className="generate-button" onClick={generate} disabled={generating}><Sparkles size={18} />{generating ? "Meracik konsep..." : mode === "Template" ? "Terapkan Brand Kit" : "Buat 4 konsep iklan"}<span>{mode === "Template" ? "6" : "12"} kredit</span></button><p className="brand-note"><Palette size={14} /> Otomatis menggunakan Brand Kit <strong>Kala Skin</strong></p>
       </section>
       <section className="result-card">
-        <div className="result-head"><div><p className="status"><i /> Konsep #{concept} siap</p><h2>{product || "Materi iklan baru"}</h2></div><button className="icon-button" aria-label="Menu hasil"><MoreHorizontal size={19} /></button></div>
+        <div className="result-head"><div><p className="status"><i /> {mode === "Template" && template ? `${template.id} dipilih` : `Konsep #${concept} siap`}</p><h2>{mode === "Template" && template ? template.title : product || "Materi iklan baru"}</h2></div><button className="icon-button" aria-label="Menu hasil"><MoreHorizontal size={19} /></button></div>
         <div className="format-tabs">{formats.map((f) => <button key={f.id} onClick={() => setFormat(f.id)} className={format === f.id ? "active" : ""}><span>{f.label}</span><small>{f.ratio}</small></button>)}</div>
-        <div className={`preview-stage ${generating ? "is-generating" : ""}`}>{generating && <div className="generating-overlay"><Sparkles size={26} /><strong>Menyusun visual terbaik...</strong></div>}<AdPreview format={format} concept={concept} /><span className="preview-size">{format === "square" ? "1080 × 1080 px" : format === "portrait" ? "1080 × 1350 px" : format === "story" ? "1080 × 1920 px" : "1920 × 1080 px"}</span></div>
+        <div className={`preview-stage ${generating ? "is-generating" : ""}`}>{generating && <div className="generating-overlay"><Sparkles size={26} /><strong>Menyusun visual terbaik...</strong></div>}{mode === "Template" && template ? <img className={`template-result ${format}`} src={template.image} alt={template.title} /> : <AdPreview format={format} concept={concept} />}<span className="preview-size">{format === "square" ? "1080 × 1080 px" : format === "portrait" ? "1080 × 1350 px" : format === "story" ? "1080 × 1920 px" : "1920 × 1080 px"}</span></div>
         <div className="concept-row"><span>Variasi konsep</span><div>{[1,2,3,4].map((n) => <button key={n} onClick={() => setConcept(n)} className={concept === n ? "active" : ""}>{n}</button>)}</div></div>
         <div className="result-actions"><button className="secondary-action" onClick={() => setSaved(!saved)}>{saved ? <Check size={17} /> : <BookOpen size={17} />}{saved ? "Tersimpan" : "Simpan"}</button><button className="download-button"><ArrowDownToLine size={17} /> Unduh PNG <ChevronDown size={15} /></button></div>
       </section>
     </div>
+  </main>;
+}
+
+const templateCategories = ["Semua", "Sorotan Produk", "Promo & Diskon", "Urgensi", "Testimoni", "Edukasi", "Masalah & Solusi", "Peluncuran"];
+
+function TemplateCatalog({ onUse }: { onUse: (template: AdTemplate) => void }) {
+  const [query, setQuery] = useState("");
+  const [category, setCategory] = useState("Semua");
+  const [batch, setBatch] = useState("Semua koleksi");
+  const [visibleCount, setVisibleCount] = useState(32);
+  const [selected, setSelected] = useState<AdTemplate | null>(null);
+  const counts = useMemo(() => Object.fromEntries(templateCategories.map((name) => [name, name === "Semua" ? adTemplates.length : adTemplates.filter((item) => item.category === name).length])), []);
+  const filtered = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    return adTemplates.filter((item) => (category === "Semua" || item.category === category) && (batch === "Semua koleksi" || item.batch === batch) && (!needle || `${item.title} ${item.keywords} ${item.id}`.toLowerCase().includes(needle)));
+  }, [query, category, batch]);
+  const chooseCategory = (next: string) => { setCategory(next); setVisibleCount(32); };
+  return <main className="content-page templates-page">
+    <section className="page-heading"><div><p className="eyebrow"><Grid3X3 size={14} /> Template iklan</p><h1>Inspirasi yang sudah <em>siap dipakai.</em></h1><p>797 template iklan unik, diklasifikasikan otomatis dan siap disesuaikan dengan Brand Kit.</p></div><span className="asset-badge"><Check size={14} /> 797 aset terindeks</span></section>
+    <section className="catalog-toolbar">
+      <label className="catalog-search"><Search size={17} /><input placeholder="Cari headline, promo, atau ID template..." value={query} onChange={(e) => { setQuery(e.target.value); setVisibleCount(32); }} /></label>
+      <label className="batch-filter"><SlidersHorizontal size={15} /><select value={batch} onChange={(e) => { setBatch(e.target.value); setVisibleCount(32); }}><option>Semua koleksi</option>{["Koleksi 1","Koleksi 2","Koleksi 3","Koleksi 4","Koleksi 5","Koleksi 6","Koleksi Update"].map((item) => <option key={item}>{item}</option>)}</select></label>
+    </section>
+    <div className="category-strip">{templateCategories.map((item) => <button key={item} onClick={() => chooseCategory(item)} className={category === item ? "active" : ""}>{item}<span>{counts[item]}</span></button>)}</div>
+    <div className="catalog-summary"><p>Menampilkan <strong>{Math.min(visibleCount, filtered.length)}</strong> dari <strong>{filtered.length}</strong> template</p><span>Semua aset • 1080 × 1080 px</span></div>
+    {filtered.length ? <div className="template-grid">{filtered.slice(0, visibleCount).map((item) => <article className="template-card" key={item.id}><button className="template-image-button" onClick={() => setSelected(item)} aria-label={`Lihat ${item.title}`}><img src={item.image} alt={item.title} loading="lazy" /><span><Eye size={15} /> Lihat detail</span></button><div className="template-meta"><div><span>{item.category}</span><h3>{item.title}</h3><p>{item.id} • {item.batch}</p></div><button onClick={() => onUse(item)} aria-label={`Gunakan ${item.title}`}><WandSparkles size={16} /></button></div></article>)}</div> : <div className="catalog-empty"><Search size={25} /><h3>Template tidak ditemukan</h3><p>Coba kata kunci atau kategori lain.</p></div>}
+    {visibleCount < filtered.length && <button className="load-more" onClick={() => setVisibleCount((count) => count + 32)}>Tampilkan 32 template berikutnya <ChevronDown size={16} /></button>}
+    {selected && <div className="template-modal" role="dialog" aria-modal="true" aria-label="Detail template"><button className="modal-backdrop" onClick={() => setSelected(null)} aria-label="Tutup detail" /><div className="modal-card"><button className="modal-close" onClick={() => setSelected(null)} aria-label="Tutup"><X size={19} /></button><div className="modal-image"><img src={selected.image} alt={selected.title} /></div><div className="modal-info"><span className="modal-category">{selected.category}</span><h2>{selected.title}</h2><p>{selected.id} • {selected.batch} • 1080 × 1080 px</p><div className="modal-tags"><span>1:1</span><span>Brand Kit ready</span><span>Teks terdeteksi</span></div><button onClick={() => onUse(selected)}><WandSparkles size={17} /> Gunakan template ini</button></div></div></div>}
   </main>;
 }
 
@@ -110,7 +141,8 @@ function BrandView() {
 }
 
 export default function Home() {
-  const [view, setView] = useState<View>("studio"); const [menuOpen, setMenuOpen] = useState(false);
-  const title = view === "studio" ? "Studio AI" : view === "library" ? "Perpustakaan" : "Brand Kit";
-  return <div className="app-shell"><Sidebar view={view} setView={setView} open={menuOpen} close={() => setMenuOpen(false)} /><div className="main-shell"><Header title={title} onMenu={() => setMenuOpen(true)} />{view === "studio" ? <Studio /> : view === "library" ? <LibraryView /> : <BrandView />}</div></div>;
+  const [view, setView] = useState<View>("studio"); const [menuOpen, setMenuOpen] = useState(false); const [selectedTemplate, setSelectedTemplate] = useState<AdTemplate | null>(null);
+  const title = view === "studio" ? "Studio AI" : view === "templates" ? "Template Iklan" : view === "library" ? "Perpustakaan" : "Brand Kit";
+  const useTemplate = (template: AdTemplate) => { setSelectedTemplate(template); setView("studio"); window.scrollTo({ top: 0, behavior: "smooth" }); };
+  return <div className="app-shell"><Sidebar view={view} setView={setView} open={menuOpen} close={() => setMenuOpen(false)} /><div className="main-shell"><Header title={title} onMenu={() => setMenuOpen(true)} />{view === "studio" ? <Studio key={selectedTemplate?.id ?? "ai"} template={selectedTemplate} /> : view === "templates" ? <TemplateCatalog onUse={useTemplate} /> : view === "library" ? <LibraryView /> : <BrandView />}</div></div>;
 }

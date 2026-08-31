@@ -1,0 +1,25 @@
+{
+  "total": 797,
+  "duplicates": 0,
+  "categoryCounts": {
+    "Sorotan Produk": 418,
+    "Promo & Diskon": 226,
+    "Edukasi": 30,
+    "Urgensi": 52,
+    "Testimoni": 49,
+    "Masalah & Solusi": 19,
+    "Peluncuran": 3
+  },
+  "batchCounts": {
+    "Koleksi 1": 103,
+    "Koleksi 2": 101,
+    "Koleksi 3": 216,
+    "Koleksi 4": 207,
+    "Koleksi 5": 47,
+    "Koleksi 6": 89,
+    "Koleksi Update": 34
+  },
+  "dimensions": {
+    "1080×1080": 797
+  }
+}
