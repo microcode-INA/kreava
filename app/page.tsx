@@ -26,6 +26,14 @@ const formatSizes: Record<Format, string> = {
   landscape: "1920 × 1080 px", mini: "320 × 100 px",
 };
 
+const outputDimensions: Record<Format, { width: number; height: number }> = {
+  square: { width: 1080, height: 1080 },
+  portrait: { width: 1080, height: 1350 },
+  story: { width: 1080, height: 1920 },
+  landscape: { width: 1920, height: 1080 },
+  mini: { width: 320, height: 100 },
+};
+
 const projects = [
   { title: "Flash Sale Skincare", type: "Gambar iklan", date: "Hari ini", tone: "coral" },
   { title: "Launch Kopi Karsa", type: "Halaman penjualan", date: "Kemarin", tone: "lime" },
@@ -86,7 +94,103 @@ function Studio({ template }: { template?: AdTemplate | null }) {
   const [editMode, setEditMode] = useState<"ai" | "manual">("ai");
   const [zoom, setZoom] = useState(100);
   const [position, setPosition] = useState(50);
+  const [downloadState, setDownloadState] = useState<"idle" | "rendering" | "done" | "select-template">("idle");
   const generate = () => { setGenerating(true); setSaved(false); window.setTimeout(() => { setConcept((v) => v % 4 + 1); setGenerating(false); }, 900); };
+
+  const downloadTemplate = async () => {
+    if (mode !== "Template" || !template) {
+      setDownloadState("select-template");
+      window.setTimeout(() => setDownloadState("idle"), 1800);
+      return;
+    }
+
+    setDownloadState("rendering");
+    try {
+      const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const nextImage = new window.Image();
+        nextImage.decoding = "async";
+        nextImage.onload = () => resolve(nextImage);
+        nextImage.onerror = reject;
+        nextImage.src = template.image;
+      });
+      const { width, height } = outputDimensions[format];
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const context = canvas.getContext("2d");
+      if (!context) throw new Error("Canvas tidak tersedia");
+
+      const drawCover = (targetX: number, targetY: number, targetWidth: number, targetHeight: number, cropPosition = 50, scale = 1) => {
+        const baseScale = Math.max(targetWidth / image.naturalWidth, targetHeight / image.naturalHeight) * scale;
+        const drawWidth = image.naturalWidth * baseScale;
+        const drawHeight = image.naturalHeight * baseScale;
+        const drawX = targetX - (drawWidth - targetWidth) * (cropPosition / 100);
+        const drawY = targetY - (drawHeight - targetHeight) / 2;
+        context.drawImage(image, drawX, drawY, drawWidth, drawHeight);
+      };
+
+      if (editMode === "manual") {
+        drawCover(0, 0, width, height, position, zoom / 100);
+      } else if (format === "square") {
+        context.drawImage(image, 0, 0, width, height);
+      } else {
+        context.save();
+        context.filter = `blur(${Math.max(18, Math.round(width * 0.025))}px) brightness(0.64) saturate(0.78)`;
+        drawCover(-40, -40, width + 80, height + 80);
+        context.restore();
+
+        if (format === "mini") {
+          context.save();
+          context.beginPath();
+          context.rect(0, 0, width * 0.43, height);
+          context.clip();
+          drawCover(0, 0, width * 0.43, height);
+          context.restore();
+
+          const gradient = context.createLinearGradient(width * 0.36, 0, width, 0);
+          gradient.addColorStop(0, "rgba(18, 30, 27, 0.35)");
+          gradient.addColorStop(0.25, "rgba(18, 30, 27, 0.9)");
+          gradient.addColorStop(1, "rgba(18, 30, 27, 0.98)");
+          context.fillStyle = gradient;
+          context.fillRect(width * 0.34, 0, width * 0.66, height);
+          context.textBaseline = "top";
+          context.fillStyle = "#c7f15a";
+          context.font = "800 7px Arial, sans-serif";
+          context.fillText("PROMO SPESIAL", 151, 18);
+          context.fillStyle = "#ffffff";
+          context.font = "800 17px Arial, sans-serif";
+          context.fillText("Penawaran terbaik", 151, 31);
+          context.fillText("untukmu hari ini.", 151, 49);
+          context.fillStyle = "#c7f15a";
+          context.font = "800 8px Arial, sans-serif";
+          context.fillText("LIHAT SEKARANG  →", 151, 76);
+        } else {
+          const containScale = Math.min(width / image.naturalWidth, height / image.naturalHeight);
+          const drawWidth = image.naturalWidth * containScale;
+          const drawHeight = image.naturalHeight * containScale;
+          context.save();
+          context.shadowColor = "rgba(0, 0, 0, 0.28)";
+          context.shadowBlur = Math.max(18, Math.round(width * 0.018));
+          context.drawImage(image, (width - drawWidth) / 2, (height - drawHeight) / 2, drawWidth, drawHeight);
+          context.restore();
+        }
+      }
+
+      const blob = await new Promise<Blob>((resolve, reject) => canvas.toBlob((result) => result ? resolve(result) : reject(new Error("PNG gagal dibuat")), "image/png"));
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${template.id.toLowerCase()}-${format}.png`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      setDownloadState("done");
+      window.setTimeout(() => setDownloadState("idle"), 1800);
+    } catch {
+      setDownloadState("idle");
+    }
+  };
   return <main className="studio-page">
     <section className="page-heading"><div><p className="eyebrow"><Sparkles size={14} /> Studio AI</p><h1>Buat iklan yang <em>siap menjual.</em></h1><p>Isi brief singkat, lalu dapatkan materi iklan yang konsisten dengan brand-mu.</p></div><button className="history-button"><RefreshCw size={15} /> Riwayat generasi</button></section>
     <div className="studio-layout">
@@ -107,7 +211,7 @@ function Studio({ template }: { template?: AdTemplate | null }) {
         {mode === "Template" && template && <div className="adapt-toolbar"><div className="adapt-modes"><button className={editMode === "ai" ? "active" : ""} onClick={() => setEditMode("ai")}><WandSparkles size={14} /> AI Adaptasi</button><button className={editMode === "manual" ? "active" : ""} onClick={() => setEditMode("manual")}><SlidersHorizontal size={14} /> Edit Manual</button></div>{editMode === "manual" && <div className="manual-controls"><label>Zoom <input type="range" min="100" max="180" value={zoom} onChange={(event) => setZoom(Number(event.target.value))} /><span>{zoom}%</span></label><label>Posisi <input type="range" min="0" max="100" value={position} onChange={(event) => setPosition(Number(event.target.value))} /></label></div>}</div>}
         <div className={`preview-stage ${generating ? "is-generating" : ""}`}>{generating && <div className="generating-overlay"><Sparkles size={26} /><strong>Menyusun visual terbaik...</strong></div>}{mode === "Template" && template ? <div className={`template-result-frame ${format} ${editMode}`}><img className="template-backdrop" src={template.image} alt="" /><img className="template-main" src={template.image} alt={template.title} style={editMode === "manual" ? { transform: `scale(${zoom / 100})`, objectPosition: `${position}% 50%` } : undefined} />{format === "mini" && editMode === "ai" && <div className="mini-ai-copy"><span>PROMO SPESIAL</span><strong>Penawaran terbaik<br />untukmu hari ini.</strong><b>Lihat sekarang →</b></div>}</div> : <AdPreview format={format} concept={concept} />}<span className="preview-size">{formatSizes[format]} • {editMode === "ai" ? "Komposisi otomatis" : "Penyesuaian manual"}</span></div>
         <div className="concept-row"><span>Variasi konsep</span><div>{[1,2,3,4].map((n) => <button key={n} onClick={() => setConcept(n)} className={concept === n ? "active" : ""}>{n}</button>)}</div></div>
-        <div className="result-actions"><button className="secondary-action" onClick={() => setSaved(!saved)}>{saved ? <Check size={17} /> : <BookOpen size={17} />}{saved ? "Tersimpan" : "Simpan"}</button><button className="download-button"><ArrowDownToLine size={17} /> Unduh PNG <ChevronDown size={15} /></button></div>
+        <div className="result-actions"><button className="secondary-action" onClick={() => setSaved(!saved)}>{saved ? <Check size={17} /> : <BookOpen size={17} />}{saved ? "Tersimpan" : "Simpan"}</button><button className="download-button" onClick={downloadTemplate} disabled={downloadState === "rendering"}>{downloadState === "done" ? <Check size={17} /> : <ArrowDownToLine size={17} />}{downloadState === "rendering" ? "Menyiapkan PNG..." : downloadState === "done" ? "PNG terunduh" : downloadState === "select-template" ? "Pilih template dulu" : `Unduh PNG ${formats.find((item) => item.id === format)?.ratio}`}<ChevronDown size={15} /></button></div>
       </section>
     </div>
   </main>;
