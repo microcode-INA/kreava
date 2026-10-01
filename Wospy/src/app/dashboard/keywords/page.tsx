@@ -22,35 +22,86 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Dialog, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { useStore } from "@/lib/store-context";
 import { useI18n } from "@/lib/i18n";
 import { formatNumber } from "@/lib/utils";
-import { SearchIntent, KeywordItem } from "@/lib/types";
+import { SearchIntent, KeywordItem, Language } from "@/lib/types";
+import { useToast } from "@/components/ui/toast";
 
 export default function KeywordExplorerPage() {
   const { language, keywords, saveKeywords } = useStore();
+  const { toast } = useToast();
   const t = useI18n(language);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedIntent, setSelectedIntent] = useState<string>("all");
   const [selectedLang, setSelectedLang] = useState<string>("all");
+  const [selectedDifficulty, setSelectedDifficulty] = useState<string>("all");
+  const [sortBy, setSortBy] = useState<string>("volume");
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [isAiSearching, setIsAiSearching] = useState(false);
 
-  // Filter keywords
-  const filteredKeywords = keywords.filter((kw) => {
-    const matchesQuery =
-      kw.keyword.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      kw.category.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesIntent = selectedIntent === "all" || kw.intent === selectedIntent;
-    const matchesLang = selectedLang === "all" || kw.language === selectedLang;
-    return matchesQuery && matchesIntent && matchesLang;
-  });
+  // Custom Keyword modal states
+  const [addModalOpen, setAddModalOpen] = useState(false);
+  const [customKwText, setCustomKwText] = useState("");
+  const [customKwVolume, setCustomKwVolume] = useState("3200");
+  const [customKwDiff, setCustomKwDiff] = useState("25");
+  const [customKwIntent, setCustomKwIntent] = useState<SearchIntent>("Commercial");
+  const [customKwLang, setCustomKwLang] = useState<Language>("id");
+  const [customKwCategory, setCustomKwCategory] = useState("Katalog Ekspor");
+
+  // Filter & sort keywords
+  const filteredKeywords = keywords
+    .filter((kw) => {
+      const matchesQuery =
+        kw.keyword.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        kw.category.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesIntent = selectedIntent === "all" || kw.intent === selectedIntent;
+      const matchesLang = selectedLang === "all" || kw.language === selectedLang;
+      const matchesDiff =
+        selectedDifficulty === "all"
+          ? true
+          : selectedDifficulty === "easy"
+          ? kw.difficulty <= 30
+          : selectedDifficulty === "medium"
+          ? kw.difficulty > 30 && kw.difficulty <= 50
+          : kw.difficulty > 50;
+      return matchesQuery && matchesIntent && matchesLang && matchesDiff;
+    })
+    .sort((a, b) => {
+      if (sortBy === "volume") return b.searchVolume - a.searchVolume;
+      if (sortBy === "difficulty") return a.difficulty - b.difficulty;
+      if (sortBy === "cpc") return b.cpc - a.cpc;
+      return 0;
+    });
 
   const handleCopy = (text: string, id: string) => {
     navigator.clipboard.writeText(text);
     setCopiedId(id);
+    toast("Kata Kunci Disalin!", `"${text}" siap digunakan di artikel.`, "info");
     setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const handleAddCustomKeyword = () => {
+    if (!customKwText.trim()) return;
+
+    const newKw: KeywordItem = {
+      id: `kw-${Date.now()}`,
+      keyword: customKwText.trim(),
+      language: customKwLang,
+      searchVolume: parseInt(customKwVolume, 10) || 1000,
+      difficulty: parseInt(customKwDiff, 10) || 30,
+      intent: customKwIntent,
+      cpc: 1.25,
+      trend: [1500, 1800, 2100, 2400, 2800, parseInt(customKwVolume, 10) || 3000],
+      category: customKwCategory || "Kustom",
+    };
+
+    saveKeywords([newKw, ...keywords]);
+    setAddModalOpen(false);
+    setCustomKwText("");
+    toast("Kata Kunci Berhasil Ditambahkan!", `"${newKw.keyword}" sekarang aktif di tracker.`, "success");
   };
 
   const handleSimulateAiDiscovery = () => {
@@ -135,10 +186,20 @@ export default function KeywordExplorerPage() {
         </div>
 
         <div className="flex items-center space-x-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setAddModalOpen(true)}
+            className="text-xs"
+          >
+            <Plus className="h-4 w-4 mr-1 text-emerald-600" />
+            <span>+ Tambah Keyword</span>
+          </Button>
+
           <Link href="/dashboard/articles/generate">
-            <Button variant="primary" className="text-xs">
+            <Button variant="primary" size="sm" className="text-xs">
               <PenTool className="h-4 w-4 mr-1.5" />
-              <span>Generate Artikel dari Keyword</span>
+              <span>Generate Artikel</span>
             </Button>
           </Link>
         </div>
@@ -226,7 +287,7 @@ export default function KeywordExplorerPage() {
           </TabsList>
 
           {/* Filters */}
-          <div className="flex items-center space-x-2 text-xs">
+          <div className="flex flex-wrap items-center gap-2 text-xs">
             <select
               value={selectedIntent}
               onChange={(e) => setSelectedIntent(e.target.value)}
@@ -239,13 +300,34 @@ export default function KeywordExplorerPage() {
             </select>
 
             <select
+              value={selectedDifficulty}
+              onChange={(e) => setSelectedDifficulty(e.target.value)}
+              className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 dark:border-slate-800 dark:bg-slate-900"
+            >
+              <option value="all">Semua Kesulitan</option>
+              <option value="easy">Mudah (KD ≤ 30%)</option>
+              <option value="medium">Menengah (KD 31-50%)</option>
+              <option value="hard">Kompetitif (KD &gt; 50%)</option>
+            </select>
+
+            <select
               value={selectedLang}
               onChange={(e) => setSelectedLang(e.target.value)}
               className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 dark:border-slate-800 dark:bg-slate-900"
             >
               <option value="all">Semua Bahasa</option>
-              <option value="id">🇮🇩 Bahasa Indonesia</option>
-              <option value="en">🇬🇧 English</option>
+              <option value="id">🇮🇩 ID</option>
+              <option value="en">🇬🇧 EN</option>
+            </select>
+
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 dark:border-slate-800 dark:bg-slate-900 font-semibold text-blue-600 dark:text-blue-400"
+            >
+              <option value="volume">Urut: Volume Tertinggi</option>
+              <option value="difficulty">Urut: KD Termudah</option>
+              <option value="cpc">Urut: CPC Tertinggi</option>
             </select>
           </div>
         </div>
@@ -427,6 +509,117 @@ export default function KeywordExplorerPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Add Custom Keyword Modal */}
+      <Dialog open={addModalOpen} onOpenChange={setAddModalOpen}>
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Plus className="h-5 w-5 text-emerald-600" />
+            <span>Tambah Kata Kunci Target Baru</span>
+          </DialogTitle>
+          <DialogDescription className="text-xs">
+            Masukkan kata kunci niche Anda untuk dipantau posisinya di Google dan dibuatkan artikel SEO otomatis.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4 my-3 text-xs">
+          <div>
+            <label className="font-semibold text-slate-700 dark:text-slate-300">
+              Kata Kunci (Keyword): <span className="text-red-500">*</span>
+            </label>
+            <Input
+              value={customKwText}
+              onChange={(e) => setCustomKwText(e.target.value)}
+              placeholder="Contoh: indonesia robusta green coffee beans export"
+              className="mt-1 h-9 text-xs"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="font-semibold text-slate-700 dark:text-slate-300">
+                Bahasa:
+              </label>
+              <select
+                value={customKwLang}
+                onChange={(e) => setCustomKwLang(e.target.value as Language)}
+                className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-2 text-xs dark:border-slate-700 dark:bg-slate-900"
+              >
+                <option value="id">🇮🇩 Bahasa Indonesia</option>
+                <option value="en">🇬🇧 English</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="font-semibold text-slate-700 dark:text-slate-300">
+                Search Intent:
+              </label>
+              <select
+                value={customKwIntent}
+                onChange={(e) => setCustomKwIntent(e.target.value as SearchIntent)}
+                className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-2 text-xs dark:border-slate-700 dark:bg-slate-900"
+              >
+                <option value="Commercial">Commercial (Niat Beli)</option>
+                <option value="Transactional">Transactional (Siap Order)</option>
+                <option value="Informational">Informational (Edukasi)</option>
+                <option value="Navigational">Navigational</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="font-semibold text-slate-700 dark:text-slate-300">
+                Estimasi Volume / Bulan:
+              </label>
+              <Input
+                type="number"
+                value={customKwVolume}
+                onChange={(e) => setCustomKwVolume(e.target.value)}
+                className="mt-1 h-9 text-xs"
+              />
+            </div>
+
+            <div>
+              <label className="font-semibold text-slate-700 dark:text-slate-300">
+                Keyword Difficulty (KD% 0-100):
+              </label>
+              <Input
+                type="number"
+                value={customKwDiff}
+                onChange={(e) => setCustomKwDiff(e.target.value)}
+                className="mt-1 h-9 text-xs"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="font-semibold text-slate-700 dark:text-slate-300">
+              Kategori Niche:
+            </label>
+            <Input
+              value={customKwCategory}
+              onChange={(e) => setCustomKwCategory(e.target.value)}
+              placeholder="Pertanian / Rempah / Layanan"
+              className="mt-1 h-9 text-xs"
+            />
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setAddModalOpen(false)} className="text-xs">
+            Batal
+          </Button>
+          <Button
+            variant="primary"
+            onClick={handleAddCustomKeyword}
+            disabled={!customKwText.trim()}
+            className="text-xs font-bold"
+          >
+            Simpan Kata Kunci
+          </Button>
+        </DialogFooter>
+      </Dialog>
     </div>
   );
 }

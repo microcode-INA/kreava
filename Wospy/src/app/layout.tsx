@@ -3,6 +3,8 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { StoreProvider } from "@/lib/store-context";
 
+import { ToastProvider } from "@/components/ui/toast";
+
 export const metadata: Metadata = {
   title: "Wospy — Platform SEO AI All-in-One untuk Eksportir & UMKM",
   description:
@@ -32,7 +34,9 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <StoreProvider>{children}</StoreProvider>
+          <StoreProvider>
+            <ToastProvider>{children}</ToastProvider>
+          </StoreProvider>
         </ThemeProvider>
       </body>
     </html>

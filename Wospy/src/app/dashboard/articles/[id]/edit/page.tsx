@@ -22,9 +22,10 @@ import {
   Quote,
   Smartphone,
   Monitor,
-  History,
   Send,
   AlertTriangle,
+  Code,
+  History,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,11 +38,13 @@ import { useStore } from "@/lib/store-context";
 import { useI18n } from "@/lib/i18n";
 import { analyzeSeoContent } from "@/lib/seo-engine";
 import { Article } from "@/lib/types";
+import { useToast } from "@/components/ui/toast";
 
 export default function ArticleEditorPage() {
   const params = useParams();
   const router = useRouter();
   const { language, articles, updateArticle, products } = useStore();
+  const { toast } = useToast();
   const t = useI18n(language);
 
   const articleId = params?.id as string;
@@ -63,6 +66,8 @@ export default function ArticleEditorPage() {
   const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
   const [scheduleDate, setScheduleDate] = useState("2026-10-15T09:00");
   const [saveSuccessMsg, setSaveSuccessMsg] = useState(false);
+  const [historyModalOpen, setHistoryModalOpen] = useState(false);
+  const [schemaModalOpen, setSchemaModalOpen] = useState(false);
 
   // Sync state when active language changes
   useEffect(() => {
@@ -119,7 +124,23 @@ export default function ArticleEditorPage() {
 
     updateArticle(updated);
     setSaveSuccessMsg(true);
+    toast(
+      "Artikel Berhasil Disimpan!",
+      `Skor SEO saat ini ${seoResult.overallScore}/100. Perubahan tersimpan lokal.`,
+      "success"
+    );
     setTimeout(() => setSaveSuccessMsg(false), 2500);
+  };
+
+  // Rollback handler
+  const handleRollback = (versionLabel: string, previousContent: string) => {
+    setContent(previousContent);
+    setHistoryModalOpen(false);
+    toast(
+      "Rollback Berhasil!",
+      `Konten artikel dikembalikan ke ${versionLabel}.`,
+      "info"
+    );
   };
 
   // Helper toolbar actions
@@ -164,7 +185,7 @@ export default function ArticleEditorPage() {
           </div>
         </div>
 
-        <div className="flex items-center space-x-2.5">
+        <div className="flex flex-wrap items-center gap-2">
           {/* Language Tab Switcher */}
           <div className="flex rounded-lg border border-slate-200 bg-slate-100 p-0.5 dark:border-slate-800 dark:bg-slate-900">
             <button
@@ -192,6 +213,29 @@ export default function ArticleEditorPage() {
           <Button
             variant="outline"
             size="sm"
+            onClick={() => setHistoryModalOpen(true)}
+            className="text-xs"
+            title="Riwayat Revisi (Version History)"
+          >
+            <History className="h-3.5 w-3.5 mr-1 text-purple-600" />
+            <span className="hidden sm:inline">Riwayat</span>
+            <span className="font-mono text-[10px] ml-1 bg-purple-100 dark:bg-purple-950 px-1 rounded">v1.2</span>
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setSchemaModalOpen(true)}
+            className="text-xs hidden md:inline-flex"
+            title="Lihat Google Schema.org JSON-LD"
+          >
+            <Code className="h-3.5 w-3.5 mr-1 text-blue-500" />
+            <span>Schema</span>
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => setPreviewOpen(true)}
             className="text-xs"
           >
@@ -206,7 +250,7 @@ export default function ArticleEditorPage() {
             className="text-xs"
           >
             <Calendar className="h-3.5 w-3.5 mr-1" />
-            <span>Jadwalkan</span>
+            <span>Jadwal</span>
           </Button>
 
           <Button
@@ -216,7 +260,7 @@ export default function ArticleEditorPage() {
             className="text-xs font-bold"
           >
             <Save className="h-3.5 w-3.5 mr-1" />
-            <span>Simpan Perubahan</span>
+            <span>Simpan</span>
           </Button>
         </div>
       </div>
@@ -692,6 +736,186 @@ export default function ArticleEditorPage() {
             className="text-xs"
           >
             Konfirmasi Jadwal
+          </Button>
+        </DialogFooter>
+      </Dialog>
+
+      {/* Version History Modal (PRD Feature) */}
+      <Dialog open={historyModalOpen} onOpenChange={setHistoryModalOpen}>
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <History className="h-5 w-5 text-purple-600" />
+            <span>Riwayat Versi Artikel & Rollback</span>
+          </DialogTitle>
+          <DialogDescription className="text-xs">
+            Setiap perubahan tersimpan otomatis. Anda dapat kembali ke draf revisi sebelumnya kapan saja.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-3 my-3">
+          {/* Version 1.2 Current */}
+          <div className="rounded-xl border-2 border-purple-500 bg-purple-50/40 dark:bg-purple-950/20 p-4 space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <span className="font-bold text-xs text-purple-900 dark:text-purple-300">
+                  v1.2 — Versi Aktif Saat Ini
+                </span>
+                <Badge variant="purple" className="text-[10px]">
+                  Skor SEO {seoResult.overallScore}/100
+                </Badge>
+              </div>
+              <span className="text-[10px] text-slate-400 font-mono">Hari ini 10:15 WIB</span>
+            </div>
+            <p className="text-xs text-slate-600 dark:text-slate-400">
+              Dilengkapi heading H2, tautan internal produk katalog, checklist meta tag lengkap.
+            </p>
+          </div>
+
+          {/* Version 1.1 */}
+          <div className="rounded-xl border border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900 p-4 space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <span className="font-bold text-xs text-slate-800 dark:text-slate-200">
+                  v1.1 — Revisi Internal Linking
+                </span>
+                <Badge variant="warning" className="text-[10px]">
+                  Skor SEO 88/100
+                </Badge>
+              </div>
+              <span className="text-[10px] text-slate-400 font-mono">28 Sep 14:30 WIB</span>
+            </div>
+            <p className="text-xs text-slate-500">
+              Penambahan deskripsi produk katalog dan alt-text gambar utama.
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                handleRollback(
+                  "v1.1 (Revisi Internal Linking)",
+                  `<h2>Pentingnya Kualitas Standar Internasional</h2>\n<p>Memilih produk bersertifikasi resmi sangat krusial bagi calon pembeli.</p>\n<p>Kunjungi <a href="/catalog/${products[0]?.slug}">Katalog Produk Kami</a> untuk info lebih lanjut.</p>`
+                )
+              }
+              className="text-xs"
+            >
+              Rollback ke Versi Ini (v1.1)
+            </Button>
+          </div>
+
+          {/* Version 1.0 */}
+          <div className="rounded-xl border border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900 p-4 space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <span className="font-bold text-xs text-slate-800 dark:text-slate-200">
+                  v1.0 — Draf Awal AI Generator
+                </span>
+                <Badge variant="secondary" className="text-[10px]">
+                  Skor SEO 75/100
+                </Badge>
+              </div>
+              <span className="text-[10px] text-slate-400 font-mono">27 Sep 09:00 WIB</span>
+            </div>
+            <p className="text-xs text-slate-500">
+              Hasil awal generate AI dari outline sebelum dilakukan editing manual.
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                handleRollback(
+                  "v1.0 (Draf Awal AI)",
+                  `<h2>Panduan Ringkas Memilih Supplier</h2>\n<p>Berikut adalah beberapa tips dasar untuk memilih supplier terpercaya dari Indonesia.</p>`
+                )
+              }
+              className="text-xs"
+            >
+              Rollback ke Versi Ini (v1.0)
+            </Button>
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setHistoryModalOpen(false)} className="text-xs">
+            Tutup
+          </Button>
+        </DialogFooter>
+      </Dialog>
+
+      {/* Schema.org JSON-LD Visualizer Modal (PRD Feature) */}
+      <Dialog open={schemaModalOpen} onOpenChange={setSchemaModalOpen}>
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Code className="h-5 w-5 text-blue-600" />
+            <span>Schema.org JSON-LD Rich Results</span>
+          </DialogTitle>
+          <DialogDescription className="text-xs">
+            Struktur metadata yang dibaca Google crawler untuk menampilkan cuplikan FAQ, Breadcrumb, dan Rich Snippets.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="my-3 space-y-3">
+          <pre className="rounded-xl bg-slate-950 p-4 text-[11px] font-mono text-emerald-400 overflow-x-auto max-h-72">
+{JSON.stringify(
+  {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "headline": title,
+    "description": metaDescription,
+    "image": featuredImage || "https://wospy.id/og-image.jpg",
+    "author": {
+      "@type": "Person",
+      "name": currentArticle.author,
+    },
+    "publisher": {
+      "@type": "Organization",
+      "name": "Wospy SEO Engine",
+      "logo": {
+        "@type": "ImageObject",
+        "url": "https://wospy.id/logo.png",
+      },
+    },
+    "datePublished": currentArticle.publishDate,
+    "dateModified": currentArticle.updatedAt,
+    "mainEntityOfPage": `https://wospy.id/blog/${slug}`,
+    "hasPart": currentArticle.faqSchema.map((faq) => ({
+      "@type": "Question",
+      "name": faq.question,
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": faq.answer,
+      },
+    })),
+  },
+  null,
+  2
+)}
+          </pre>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setSchemaModalOpen(false)} className="text-xs">
+            Tutup
+          </Button>
+          <Button
+            variant="primary"
+            onClick={() => {
+              navigator.clipboard.writeText(
+                JSON.stringify(
+                  {
+                    "@context": "https://schema.org",
+                    "@type": "Article",
+                    "headline": title,
+                    "description": metaDescription,
+                  },
+                  null,
+                  2
+                )
+              );
+              toast("Schema JSON-LD Disalin!", "Tempelkan pada tag <head> atau Google Rich Results Test.", "success");
+            }}
+            className="text-xs"
+          >
+            Salin Schema JSON-LD
           </Button>
         </DialogFooter>
       </Dialog>

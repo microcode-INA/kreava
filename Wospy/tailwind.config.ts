@@ -85,12 +85,22 @@ const config: Config = {
         pulseGlow: {
           '0%, 100%': { opacity: '1' },
           '50%': { opacity: '0.4' },
-        }
+        },
+        slideUp: {
+          from: { transform: 'translateY(100%)', opacity: '0' },
+          to: { transform: 'translateY(0)', opacity: '1' },
+        },
+        fadeIn: {
+          from: { opacity: '0' },
+          to: { opacity: '1' },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         "pulse-slow": "pulseGlow 3s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+        slideUp: "slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)",
+        fadeIn: "fadeIn 0.2s ease-out",
       },
     },
   },
